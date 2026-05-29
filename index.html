@@ -443,8 +443,11 @@
 
             <button class="btn mt-4" id="start-btn">시험 시작하기</button>
             <div id="dashboard-stats" style="margin-top: 20px; text-align: center; display: none;">
-                <p class="text-muted">저장된 이전 오답 노트가 있습니다.</p>
-                <button class="btn btn-secondary mt-4" id="retry-wrong-btn">오답 노트 풀기</button>
+                <p class="text-muted" id="progress-text" style="margin-bottom: 12px;"></p>
+                <div class="btn-group">
+                    <button class="btn btn-secondary" id="retry-wrong-btn" style="display: none;">오답 노트 풀기</button>
+                    <button class="btn btn-outline" id="reset-progress-btn">진행 상황 초기화</button>
+                </div>
             </div>
         </div>
 
@@ -869,6 +872,8 @@
         const startBtn = document.getElementById('start-btn');
         const retryWrongBtn = document.getElementById('retry-wrong-btn');
         const dashboardStats = document.getElementById('dashboard-stats');
+        const progressText = document.getElementById('progress-text');
+        const resetProgressBtn = document.getElementById('reset-progress-btn');
 
         // Quiz
         const qCategory = document.getElementById('q-category');
@@ -895,6 +900,7 @@
             
             startBtn.addEventListener('click', () => startQuiz(false));
             retryWrongBtn.addEventListener('click', () => startQuiz(true));
+            resetProgressBtn.addEventListener('click', resetProgress);
             
             prevBtn.addEventListener('click', () => navigate(-1));
             nextBtn.addEventListener('click', () => navigate(1));
@@ -915,14 +921,49 @@
             localStorage.setItem('ainlp_wrong_answers', JSON.stringify(wrongIds));
         }
 
+        // IDs of questions already answered correctly ("mastered"). These are
+        // excluded from normal quiz sessions so only new questions keep appearing.
+        function getCorrectAnswers() {
+            const saved = localStorage.getItem('ainlp_correct_answers');
+            return saved ? JSON.parse(saved) : [];
+        }
+
+        function saveCorrectAnswers(correctIds) {
+            localStorage.setItem('ainlp_correct_answers', JSON.stringify(correctIds));
+        }
+
         function checkSavedWrongAnswers() {
             const wrongIds = getWrongAnswers();
+            const correctIds = getCorrectAnswers();
+            const total = MOCK_QUESTIONS.length;
+            const mastered = correctIds.filter(id => MOCK_QUESTIONS.some(q => q.id === id)).length;
+
+            if (wrongIds.length === 0 && mastered === 0) {
+                dashboardStats.style.display = 'none';
+                return;
+            }
+
+            dashboardStats.style.display = 'block';
+
+            let msg = `진행 상황: 전체 ${total}문제 중 ${mastered}문제를 맞혔어요.`;
+            if (mastered >= total) {
+                msg = `🎉 전체 ${total}문제를 모두 맞혔어요! 초기화하면 처음부터 다시 풀 수 있어요.`;
+            }
+            progressText.textContent = msg;
+
             if (wrongIds.length > 0) {
-                dashboardStats.style.display = 'block';
+                retryWrongBtn.style.display = 'inline-block';
                 retryWrongBtn.textContent = `오답 노트 풀기 (${wrongIds.length}문제)`;
             } else {
-                dashboardStats.style.display = 'none';
+                retryWrongBtn.style.display = 'none';
             }
+        }
+
+        function resetProgress() {
+            if (!confirm('맞힌 문제와 오답 노트를 모두 초기화하고 처음부터 다시 풀까요?')) return;
+            localStorage.removeItem('ainlp_correct_answers');
+            localStorage.removeItem('ainlp_wrong_answers');
+            checkSavedWrongAnswers();
         }
 
         function switchScreen(screenName) {
@@ -953,17 +994,26 @@
             } else {
                 const cat = catSelect.value;
                 const diff = diffSelect.value;
-                state.questions = MOCK_QUESTIONS.filter(q => {
+                const matching = MOCK_QUESTIONS.filter(q => {
                     const matchCat = cat === 'all' || q.category === cat;
                     const matchDiff = diff === 'all' || q.difficulty === diff;
                     return matchCat && matchDiff;
                 });
 
-                if (state.questions.length === 0) {
+                if (matching.length === 0) {
                     alert("선택한 조건에 맞는 문제가 없습니다.");
                     return;
                 }
-                
+
+                // Exclude questions already answered correctly so only new ones appear.
+                const correctIds = getCorrectAnswers();
+                state.questions = matching.filter(q => !correctIds.includes(q.id));
+
+                if (state.questions.length === 0) {
+                    alert("선택한 조건의 모든 문제를 이미 맞혔어요! '진행 상황 초기화'를 누르거나 다른 카테고리/난이도를 선택해 주세요.");
+                    return;
+                }
+
                 // Shuffle questions
                 state.questions.sort(() => Math.random() - 0.5);
             }
@@ -1199,14 +1249,15 @@
         function finishQuiz() {
             let correctCount = 0;
             const wrongIds = [];
-            
+            const correctIds = [];
+
             resultsList.innerHTML = '';
 
             state.questions.forEach((q, index) => {
                 const userAns = state.userAnswers[q.id] || '';
                 const isCorrect = isAnswerCorrect(q, userAns);
-                
-                if (isCorrect) correctCount++;
+
+                if (isCorrect) { correctCount++; correctIds.push(q.id); }
                 else wrongIds.push(q.id);
 
                 // Build result item
@@ -1256,7 +1307,7 @@
             // Update wrong answers
             const existingWrong = getWrongAnswers();
             let newWrongList = [];
-            
+
             if (state.isRetryMode) {
                 // Remove corrected ones from the list
                 newWrongList = existingWrong.filter(id => !state.questions.some(q => q.id === id) || wrongIds.includes(id));
@@ -1264,8 +1315,15 @@
                 // Add new wrong ones, keeping unique
                 newWrongList = [...new Set([...existingWrong, ...wrongIds])];
             }
-            
+
             saveWrongAnswers(newWrongList);
+
+            // Update mastered (correctly answered) questions: add the ones just
+            // answered correctly, and drop any that were just answered wrong so
+            // they reappear in future sessions.
+            const newCorrectList = [...new Set([...getCorrectAnswers(), ...correctIds])]
+                .filter(id => !wrongIds.includes(id));
+            saveCorrectAnswers(newCorrectList);
 
             if (wrongIds.length > 0) {
                 reviewWrongBtn.style.display = 'inline-block';
