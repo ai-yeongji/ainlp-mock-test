@@ -1046,7 +1046,8 @@
 
             document.addEventListener('keydown', handleQuizKeydown);
 
-            // Force MathJax to render if present in initial state (not needed usually)
+            // Resume an in-progress quiz if the page was refreshed mid-session.
+            restoreSession();
         }
 
         function getWrongAnswers() {
@@ -1100,12 +1101,63 @@
             if (!confirm('맞힌 문제와 오답 노트를 모두 초기화하고 처음부터 다시 풀까요?')) return;
             localStorage.removeItem('ainlp_correct_answers');
             localStorage.removeItem('ainlp_wrong_answers');
+            clearSession();
             checkSavedWrongAnswers();
         }
 
         function switchScreen(screenName) {
             Object.values(screens).forEach(s => s.classList.remove('active'));
             screens[screenName].classList.add('active');
+            state.screen = screenName;
+        }
+
+        // --- Resume an in-progress session across page refreshes ---
+        function saveSession() {
+            if (state.screen !== 'quiz' && state.screen !== 'results') return;
+            if (!state.questions || state.questions.length === 0) return;
+            const session = {
+                screen: state.screen,
+                questionIds: state.questions.map(q => q.id),
+                currentIndex: state.currentIndex,
+                userAnswers: state.userAnswers,
+                lockedAnswers: state.lockedAnswers,
+                isRetryMode: state.isRetryMode,
+                focusedOption: state.focusedOption
+            };
+            localStorage.setItem('ainlp_session', JSON.stringify(session));
+        }
+
+        function clearSession() {
+            localStorage.removeItem('ainlp_session');
+        }
+
+        function restoreSession() {
+            const raw = localStorage.getItem('ainlp_session');
+            if (!raw) return false;
+            let s;
+            try { s = JSON.parse(raw); } catch (e) { return false; }
+            if (!s || !Array.isArray(s.questionIds) || s.questionIds.length === 0) return false;
+
+            // Rebuild the question objects from their IDs.
+            const questions = s.questionIds
+                .map(id => MOCK_QUESTIONS.find(q => q.id === id))
+                .filter(Boolean);
+            if (questions.length === 0) return false;
+
+            state.questions = questions;
+            state.currentIndex = Math.min(s.currentIndex || 0, questions.length - 1);
+            state.userAnswers = s.userAnswers || {};
+            state.lockedAnswers = s.lockedAnswers || {};
+            state.isRetryMode = !!s.isRetryMode;
+            state.focusedOption = s.focusedOption || 0;
+
+            if (s.screen === 'results') {
+                finishQuiz(); // rebuilds the results view from restored state
+            } else {
+                switchScreen('quiz');
+                renderQuestion();
+            }
+            return true;
         }
 
         function renderMath() {
@@ -1161,6 +1213,7 @@
         }
 
         function showDashboard() {
+            clearSession(); // leaving the quiz abandons the in-progress session
             checkSavedWrongAnswers();
             switchScreen('dashboard');
         }
@@ -1309,6 +1362,7 @@
             }
 
             renderMath();
+            saveSession();
         }
 
         function lockAnswer(qId) {
@@ -1356,6 +1410,7 @@
         function updateOptionFocus() {
             const items = qOptionsContainer.querySelectorAll('.option-item');
             items.forEach((el, i) => el.classList.toggle('focused', i === state.focusedOption));
+            saveSession();
         }
 
         // Advance to the next question, or submit the quiz on the last one.
@@ -1591,6 +1646,7 @@
             switchScreen('results');
             renderMath();
             window.scrollTo(0, 0);
+            saveSession();
         }
 
         // Run Init
