@@ -1508,18 +1508,21 @@
             }
 
             const correctAns = q.answer.toString().toLowerCase();
-            const userAnsClean = userAns.replace(/\s+/g, '');
-            const correctAnsClean = correctAns.replace(/\s+/g, '');
+            // Normalize away whitespace and hyphens so "cross attention",
+            // "cross-attention", "crossattention" all compare equal.
+            const norm = (s) => (s || '').toString().toLowerCase().replace(/[\s\u002d\u2010-\u2015]+/g, '');
+            const userAnsClean = norm(userAns);
+            const correctAnsClean = norm(correctAns);
 
             // Build every acceptable variant of the stored answer and compare
-            // against the (whitespace-insensitive) user input.
+            // against the (whitespace/hyphen-insensitive) user input.
             // Handles:
             //   "Overfitting (과적합)"        → "overfitting" / "과적합"
             //   "eval() (또는 model.eval())"  → "eval()" / "model.eval()"
-            //   "Greedy Search (또는 탐욕 탐색)" → both, plus listed alternatives
+            //   "Cross-Attention (크로스 어텐션)" → "cross attention" / "크로스 어텐션"
             const variants = new Set();
             const addVariant = (s) => {
-                const v = (s || '').trim().replace(/\s+/g, '');
+                const v = norm(s);
                 if (v) variants.add(v);
             };
 
