@@ -297,6 +297,16 @@
             box-shadow: inset 0 0 0 1px var(--primary-color);
         }
 
+        .option-item.focused {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px var(--primary-color);
+        }
+        .option-item.focused .opt-num {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+            color: #fff;
+        }
+
         .option-item.correct-choice {
             background-color: rgba(16, 185, 129, 0.15);
             border-color: var(--secondary-color);
@@ -514,7 +524,7 @@
                 <button class="btn" id="submit-btn" style="display: none;">제출 및 채점</button>
             </div>
             <div class="kbd-hint">
-                키보드: <kbd>1</kbd>~<kbd>4</kbd> 보기 선택 · <kbd>Enter</kbd> 정답 확인/다음 · <kbd>←</kbd> 이전 · <kbd>→</kbd> 다음
+                키보드: <kbd>1</kbd>~<kbd>4</kbd> 또는 <kbd>↑</kbd><kbd>↓</kbd> 보기 이동 · <kbd>Enter</kbd> 선택/확인·다음 · <kbd>←</kbd> 이전 · <kbd>→</kbd> 다음
             </div>
         </div>
 
@@ -979,7 +989,8 @@
             currentIndex: 0,
             userAnswers: {}, // id: answer
             lockedAnswers: {}, // id: boolean
-            isRetryMode: false
+            isRetryMode: false,
+            focusedOption: 0 // keyboard-highlighted multiple-choice option index
         };
 
         // --- DOM Elements ---
@@ -1107,6 +1118,7 @@
             state.userAnswers = {};
             state.lockedAnswers = {};
             state.currentIndex = 0;
+            state.focusedOption = 0;
             state.isRetryMode = isRetry;
 
             if (isRetry) {
@@ -1170,10 +1182,17 @@
             const isLocked = state.lockedAnswers[q.id] === true;
 
             if (q.type === 'multiple-choice') {
+                if (state.focusedOption == null || state.focusedOption >= q.options.length) {
+                    state.focusedOption = 0;
+                }
                 q.options.forEach((opt, idx) => {
                     const div = document.createElement('div');
                     let classes = 'option-item';
-                    
+
+                    if (!isLocked && idx === state.focusedOption) {
+                        classes += ' focused';
+                    }
+
                     if (isLocked) {
                         classes += ' disabled';
                         const isSelected = state.userAnswers[q.id] === opt;
@@ -1234,19 +1253,8 @@
                     input.style.opacity = '0.8';
                 } else {
                     input.oninput = (e) => { state.userAnswers[q.id] = e.target.value.trim(); };
-                    input.onkeydown = (e) => {
-                        if (e.key === 'Enter') {
-                            e.preventDefault();
-                            // Keep this from reaching the global handler, otherwise the
-                            // same Enter would also advance to the next question.
-                            e.stopPropagation();
-                            if (!state.userAnswers[q.id] || state.userAnswers[q.id].trim() === '') {
-                                alert("정답을 입력해주세요.");
-                                return;
-                            }
-                            lockAnswer(q.id);
-                        }
-                    };
+                    // Enter is handled centrally in handleQuizKeydown so locking and
+                    // advancing can't race against each other.
                 }
                 
                 inputContainer.appendChild(input);
@@ -1317,8 +1325,15 @@
             const newIndex = state.currentIndex + dir;
             if (newIndex >= 0 && newIndex < state.questions.length) {
                 state.currentIndex = newIndex;
+                state.focusedOption = 0;
                 renderQuestion();
             }
+        }
+
+        // Update the keyboard highlight on multiple-choice options without a full re-render.
+        function updateOptionFocus() {
+            const items = qOptionsContainer.querySelectorAll('.option-item');
+            items.forEach((el, i) => el.classList.toggle('focused', i === state.focusedOption));
         }
 
         // Advance to the next question, or submit the quiz on the last one.
@@ -1334,6 +1349,9 @@
         function handleQuizKeydown(e) {
             if (!screens.quiz.classList.contains('active')) return;
             if (e.altKey || e.ctrlKey || e.metaKey) return;
+            // Ignore auto-repeat from a held key. Without this, holding Enter
+            // would lock the answer and then immediately skip the explanation.
+            if (e.repeat) return;
 
             const q = state.questions[state.currentIndex];
             if (!q) return;
@@ -1341,11 +1359,28 @@
             const inputEl = qOptionsContainer.querySelector('input');
             const typingInInput = inputEl && document.activeElement === inputEl;
 
-            // While editing the short-answer field, let the input own every key
-            // (digits, arrows for cursor movement, Enter to confirm).
+            // Enter: confirm an answer first; only advance once it's already locked.
+            if (e.key === 'Enter') {
+                if (!isLocked) {
+                    if (q.type === 'multiple-choice') {
+                        e.preventDefault();
+                        selectOption(q.id, q.options[state.focusedOption || 0]);
+                    } else if (q.type === 'short-answer') {
+                        const val = (state.userAnswers[q.id] || '').trim();
+                        if (val) { e.preventDefault(); lockAnswer(q.id); }
+                    }
+                } else {
+                    e.preventDefault();
+                    goNextOrSubmit();
+                }
+                return;
+            }
+
+            // While editing an unlocked short answer, let the input own the other
+            // keys (digits and left/right for cursor movement).
             if (typingInInput && !isLocked) return;
 
-            // Number keys select a multiple-choice option.
+            // Number keys directly select a multiple-choice option.
             if (q.type === 'multiple-choice' && !isLocked && /^[1-9]$/.test(e.key)) {
                 const n = parseInt(e.key, 10);
                 if (n <= q.options.length) {
@@ -1355,23 +1390,24 @@
                 return;
             }
 
+            // Up/Down move the highlight between multiple-choice options.
+            if (q.type === 'multiple-choice' && !isLocked && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+                e.preventDefault();
+                const n = q.options.length;
+                const cur = state.focusedOption || 0;
+                state.focusedOption = e.key === 'ArrowDown'
+                    ? Math.min(n - 1, cur + 1)
+                    : Math.max(0, cur - 1);
+                updateOptionFocus();
+                return;
+            }
+
+            // Left/Right move between questions.
             if (e.key === 'ArrowLeft') {
                 if (state.currentIndex > 0) { e.preventDefault(); navigate(-1); }
                 return;
             }
-
             if (e.key === 'ArrowRight') {
-                e.preventDefault();
-                goNextOrSubmit();
-                return;
-            }
-
-            if (e.key === 'Enter') {
-                // While typing an unlocked short answer, the input's own handler
-                // takes care of locking — don't also advance.
-                if (typingInInput && !isLocked) return;
-                // Don't skip an unanswered multiple-choice question.
-                if (!isLocked && q.type === 'multiple-choice') return;
                 e.preventDefault();
                 goNextOrSubmit();
             }
