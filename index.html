@@ -990,7 +990,8 @@
             userAnswers: {}, // id: answer
             lockedAnswers: {}, // id: boolean
             isRetryMode: false,
-            focusedOption: 0 // keyboard-highlighted multiple-choice option index
+            focusedOption: 0, // keyboard-highlighted multiple-choice option index
+            lastLockAt: 0 // timestamp of the last answer lock (debounces Enter-to-advance)
         };
 
         // --- DOM Elements ---
@@ -1312,6 +1313,7 @@
 
         function lockAnswer(qId) {
             state.lockedAnswers[qId] = true;
+            state.lastLockAt = Date.now();
             renderQuestion();
         }
 
@@ -1352,6 +1354,10 @@
             // Ignore auto-repeat from a held key. Without this, holding Enter
             // would lock the answer and then immediately skip the explanation.
             if (e.repeat) return;
+            // Ignore keydowns fired while an IME (e.g. Korean) is composing.
+            // Committing a composition with Enter fires an extra keydown that
+            // would otherwise advance right past the just-shown explanation.
+            if (e.isComposing || e.keyCode === 229) return;
 
             const q = state.questions[state.currentIndex];
             if (!q) return;
@@ -1371,6 +1377,10 @@
                     }
                 } else {
                     e.preventDefault();
+                    // Don't advance on an Enter that lands right after a lock — the
+                    // user must actually see the feedback first. Guards against any
+                    // stray double-fire (IME, key chatter) slipping a skip through.
+                    if (Date.now() - state.lastLockAt < 400) return;
                     goNextOrSubmit();
                 }
                 return;
