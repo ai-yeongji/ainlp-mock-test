@@ -424,10 +424,13 @@
                 <label for="category-select">학습 카테고리</label>
                 <select id="category-select">
                     <option value="all">전체 (All Categories)</option>
+                    <option value="Foundations">머신러닝 기초 (Foundations)</option>
                     <option value="NLP Basics">자연어처리 기초 (NLP Basics)</option>
+                    <option value="Modeling">모델링 (Modeling)</option>
                     <option value="Model Training">모델 학습 (Model Training)</option>
                     <option value="Inference & Serving">모델 추론 및 서빙 (Inference & Serving)</option>
                     <option value="Optimization">모델 경량화 (Optimization)</option>
+                    <option value="Engineering">엔지니어링 (Engineering)</option>
                 </select>
             </div>
 
@@ -848,6 +851,92 @@
                 const exp = `Dropout 시 출력 기댓값을 맞추기 위해 1 / (1 - p) 배 합니다. 1 / (1 - ${d/100}) = ${ans}입니다.`;
                 addQ("Model Training", "상", `Dropout 비율이 ${d}%일 때, 학습 시 활성화된 뉴런의 출력값에 곱해지는 Scaling Factor 값은?`, "short-answer", null, ans, exp);
             });
+
+            // --- Expanded question pool ---
+            const moreConcepts = [
+                ["NLP Basics", "하", "문장을 의미 있는 최소 단위로 나누는 전처리 과정을 무엇이라 하는가?", "short-answer", null, "Tokenization (토큰화)", "토큰화는 텍스트를 단어, 서브워드, 문자 등의 토큰으로 분할하는 과정입니다."],
+                ["NLP Basics", "중", "BPE(Byte Pair Encoding)의 핵심 아이디어로 옳은 것은?", "multiple-choice", ["가장 빈번한 문자 쌍을 반복적으로 병합하여 서브워드 사전을 구성", "문장을 단어 단위로만 분할", "형태소 분석기를 사용", "불용어를 제거"], "가장 빈번한 문자 쌍을 반복적으로 병합하여 서브워드 사전을 구성", "BPE는 자주 등장하는 바이트(문자) 쌍을 병합해 OOV 문제를 완화하는 서브워드 토큰화 기법입니다."],
+                ["NLP Basics", "하", "단어를 고정된 크기의 실수 벡터로 표현하여 의미적 유사성을 반영하는 기법을 통칭하여 무엇이라 하는가?", "short-answer", null, "Word Embedding (워드 임베딩)", "임베딩은 단어를 저차원 밀집 벡터로 표현해 의미 관계를 벡터 공간에 담습니다."],
+                ["NLP Basics", "중", "TF-IDF에서 IDF(역문서빈도)가 높은 단어의 특징은?", "multiple-choice", ["적은 수의 문서에만 등장하는 희귀한 단어", "모든 문서에 자주 등장하는 단어", "불용어", "가장 긴 단어"], "적은 수의 문서에만 등장하는 희귀한 단어", "IDF는 특정 단어가 드물게 등장할수록 큰 값을 가져 변별력 있는 단어에 가중치를 줍니다."],
+                ["NLP Basics", "중", "Word2Vec의 Skip-gram 모델이 학습하는 목표는?", "multiple-choice", ["중심 단어로 주변 단어를 예측", "주변 단어로 중심 단어를 예측", "문장의 긍부정 분류", "다음 문장 예측"], "중심 단어로 주변 단어를 예측", "Skip-gram은 중심 단어가 주어졌을 때 문맥(주변) 단어들을 예측합니다. (CBOW는 그 반대)"],
+                ["NLP Basics", "하", "BERT의 두 가지 사전학습 과제 중, 입력 토큰의 일부를 가리고 맞추는 과제는?", "short-answer", null, "Masked Language Modeling (MLM)", "BERT는 MLM과 NSP(Next Sentence Prediction)로 사전학습됩니다."],
+                ["NLP Basics", "중", "BERT와 GPT의 구조적 차이로 옳은 것은?", "multiple-choice", ["BERT는 인코더 기반 양방향, GPT는 디코더 기반 단방향", "BERT는 디코더, GPT는 인코더", "둘 다 단방향", "둘 다 인코더-디코더"], "BERT는 인코더 기반 양방향, GPT는 디코더 기반 단방향", "BERT는 Transformer 인코더로 양방향 문맥을, GPT는 디코더로 좌→우 단방향 생성을 합니다."],
+                ["NLP Basics", "상", "Self-Attention에서 Query와 Key의 내적을 차원의 제곱근으로 나누는(Scaling) 이유는?", "multiple-choice", ["내적 값이 커져 Softmax 기울기가 소실되는 것을 방지", "연산 속도 향상", "파라미터 수 감소", "과적합 방지"], "내적 값이 커져 Softmax 기울기가 소실되는 것을 방지", "d_k가 클수록 내적의 분산이 커져 Softmax가 포화되므로 √d_k로 나눠 안정화합니다."],
+                ["NLP Basics", "중", "Cosine Similarity가 두 벡터의 유사도 측정에 자주 쓰이는 이유는?", "multiple-choice", ["벡터의 크기(길이)와 무관하게 방향만으로 유사도를 측정", "항상 0과 1 사이 정수", "연산이 불필요", "거리를 그대로 반환"], "벡터의 크기(길이)와 무관하게 방향만으로 유사도를 측정", "코사인 유사도는 벡터 간 각도를 이용해 크기에 영향받지 않고 의미적 방향성을 비교합니다."],
+                ["NLP Basics", "하", "원-핫 인코딩(One-hot Encoding)의 단점으로 가장 적절한 것은?", "multiple-choice", ["차원이 매우 크고 단어 간 의미 관계를 표현 못 함", "계산만 느림", "항상 과적합", "음수를 못 다룸"], "차원이 매우 크고 단어 간 의미 관계를 표현 못 함", "원-핫은 희소(sparse)하고 단어 간 유사도가 모두 0이라 의미를 담지 못합니다."],
+                ["NLP Basics", "중", "NER(Named Entity Recognition)은 어떤 작업인가?", "multiple-choice", ["텍스트에서 인명·지명·기관명 등 개체를 식별·분류", "문장 긍부정 판별", "기계 번역", "문서 요약"], "텍스트에서 인명·지명·기관명 등 개체를 식별·분류", "개체명 인식은 토큰을 개체 유형 태그로 분류하는 시퀀스 라벨링 과제입니다."],
+                ["NLP Basics", "하", "두 언어 간 문장을 자동 변환하는 NLP 과제를 무엇이라 하는가?", "short-answer", null, "Machine Translation (기계 번역)", "Transformer는 본래 기계 번역을 위해 제안되었습니다."],
+                ["NLP Basics", "상", "Perplexity(혼란도)가 낮을수록 언어 모델은?", "multiple-choice", ["다음 단어를 더 잘 예측한다(성능이 좋다)", "과적합이다", "속도가 느리다", "파라미터가 많다"], "다음 단어를 더 잘 예측한다(성능이 좋다)", "Perplexity는 모델이 시퀀스에 부여한 확률의 역수의 기하평균으로, 낮을수록 좋습니다."],
+
+                ["Model Training", "하", "경사하강법에서 전체 데이터가 아닌 일부 미니배치로 기울기를 추정해 가중치를 갱신하는 방법은?", "short-answer", null, "SGD (Stochastic Gradient Descent)", "미니배치 SGD는 메모리 효율적이며 잦은 업데이트로 빠른 수렴을 돕습니다."],
+                ["Model Training", "중", "Gradient Exploding(기울기 폭발)을 완화하는 대표적인 기법은?", "multiple-choice", ["Gradient Clipping", "Dropout 증가", "Batch size 증가", "Learning rate 증가"], "Gradient Clipping", "기울기의 norm이 임계값을 넘으면 잘라내(clip) 폭발을 방지합니다."],
+                ["Model Training", "중", "미니배치가 너무 작을 때 나타나는 현상으로 옳은 것은?", "multiple-choice", ["기울기 추정의 분산이 커져 학습이 불안정", "항상 과적합", "메모리 부족", "학습 불가능"], "기울기 추정의 분산이 커져 학습이 불안정", "작은 배치는 노이즈가 큰 기울기를 주어 손실이 출렁일 수 있습니다."],
+                ["Model Training", "상", "Adam 옵티마이저에서 1차 모멘트 추정에 사용하는 하이퍼파라미터 beta1의 일반적 기본값은?", "short-answer", null, "0.9", "Adam의 기본값은 보통 beta1=0.9, beta2=0.999입니다."],
+                ["Model Training", "중", "Weight Decay(가중치 감쇠)는 어떤 정규화와 본질적으로 유사한가?", "multiple-choice", ["L2 Regularization", "L1 Regularization", "Dropout", "Batch Norm"], "L2 Regularization", "Weight Decay는 가중치의 L2 norm에 페널티를 주어 큰 가중치를 억제합니다."],
+                ["Model Training", "하", "전이학습에서 사전학습된 모델을 새 데이터로 추가 학습시키는 과정을 무엇이라 하는가?", "short-answer", null, "Fine-tuning (미세조정)", "대규모로 사전학습된 모델을 소량의 목표 데이터로 미세조정해 성능을 끌어올립니다."],
+                ["Model Training", "중", "Cross Validation(교차검증)의 주된 목적은?", "multiple-choice", ["제한된 데이터에서 모델의 일반화 성능을 안정적으로 추정", "학습 속도 향상", "파라미터 수 감소", "데이터 증강"], "제한된 데이터에서 모델의 일반화 성능을 안정적으로 추정", "K-Fold 등으로 데이터를 나눠 평가해 단일 분할의 우연성을 줄입니다."],
+                ["Model Training", "상", "학습률 스케줄 중, 코사인 함수를 따라 학습률을 점진적으로 감소시키는 방식은?", "short-answer", null, "Cosine Annealing", "Cosine Annealing은 학습률을 코사인 곡선 형태로 부드럽게 감소시킵니다."],
+                ["Model Training", "중", "불균형 데이터 학습 시, 쉬운 샘플의 손실 비중을 낮춰 어려운/소수 샘플에 집중하게 하는 손실은?", "short-answer", null, "Focal Loss", "Focal Loss는 잘 맞히는 쉬운 샘플의 손실 기여를 줄여 어려운 샘플에 집중하게 합니다."],
+                ["Model Training", "하", "모델이 학습 데이터조차 제대로 맞히지 못하고 train/val 손실이 모두 높은 상태를 무엇이라 하는가?", "short-answer", null, "Underfitting (과소적합)", "과소적합은 모델 용량 부족이나 학습 부족으로 발생하며, 모델 복잡도를 늘려 해결합니다."],
+                ["Model Training", "중", "데이터 증강(Data Augmentation)의 주된 목적은?", "multiple-choice", ["데이터 다양성을 늘려 일반화 성능 향상", "파라미터 감소", "학습 속도 향상", "메모리 절약"], "데이터 다양성을 늘려 일반화 성능 향상", "원본을 변형(회전, 노이즈, 동의어 치환 등)해 과적합을 줄입니다."],
+                ["Model Training", "상", "Curriculum Learning의 핵심 아이디어는?", "multiple-choice", ["쉬운 샘플부터 점차 어려운 샘플로 학습", "어려운 샘플부터 학습", "무작위로만 학습", "데이터를 제거"], "쉬운 샘플부터 점차 어려운 샘플로 학습", "사람의 학습처럼 난이도를 점진적으로 올려 수렴과 일반화를 돕습니다."],
+                ["Model Training", "중", "RLHF에서 사람의 선호를 학습해 응답에 점수를 매기는 모델은?", "short-answer", null, "Reward Model (보상 모델)", "보상 모델의 점수를 신호로 PPO 등으로 정책(LLM)을 최적화합니다."],
+
+                ["Inference & Serving", "중", "LLM 디코딩에서 다음 토큰 확률 분포의 뾰족함(무작위성)을 조절하는 하이퍼파라미터는?", "short-answer", null, "Temperature", "Temperature가 낮으면 결정적(보수적), 높으면 다양/무작위한 출력이 됩니다."],
+                ["Inference & Serving", "중", "누적 확률이 임계값 p에 도달할 때까지의 토큰만 후보로 두고 샘플링하는 디코딩 기법은?", "short-answer", null, "Top-p (Nucleus Sampling)", "Top-p 샘플링은 상위 누적확률 p 범위의 토큰 집합에서만 샘플링합니다."],
+                ["Inference & Serving", "중", "확률이 가장 높은 단일 토큰만 매 스텝 선택하는 가장 단순한 디코딩 방식은?", "short-answer", null, "Greedy Search (또는 탐욕 탐색)", "Greedy Search는 매 스텝 최댓값을 고르며 빠르지만 전역 최적 시퀀스를 보장하지 못합니다."],
+                ["Inference & Serving", "상", "여러 후보 시퀀스(빔)를 동시에 유지하며 누적 확률이 높은 경로를 탐색하는 디코딩 기법은?", "short-answer", null, "Beam Search (빔 서치)", "Beam Search는 매 스텝 상위 k개 후보를 유지해 Greedy보다 나은 시퀀스를 찾습니다."],
+                ["Inference & Serving", "중", "LLM 추론에서 프롬프트 전체를 한 번에 병렬 처리하는 단계를 무엇이라 하는가?", "short-answer", null, "Prefill", "추론은 프롬프트를 병렬 처리하는 Prefill 단계와 토큰을 하나씩 만드는 Decode 단계로 나뉩니다."],
+                ["Inference & Serving", "상", "vLLM이 KV Cache를 운영체제 페이징처럼 블록 단위로 관리해 메모리 단편화를 줄이는 기법은?", "short-answer", null, "PagedAttention", "PagedAttention은 KV Cache를 고정 크기 블록으로 나눠 관리해 메모리 활용률을 크게 높입니다."],
+                ["Inference & Serving", "하", "추론 지연시간 지표 중 첫 토큰이 나오기까지 걸리는 시간을 무엇이라 하는가?", "short-answer", null, "TTFT (Time To First Token)", "TTFT는 사용자 체감 응답성에 직접 영향을 주는 핵심 지표입니다."],
+                ["Inference & Serving", "중", "반복적으로 같은 문구를 생성하는 것을 억제하기 위해 이미 등장한 토큰의 확률을 낮추는 파라미터는?", "multiple-choice", ["Repetition Penalty", "Temperature 0", "Top-k=1", "Beam width"], "Repetition Penalty", "Repetition Penalty는 이미 생성된 토큰의 로짓을 깎아 반복을 줄입니다."],
+                ["Inference & Serving", "상", "Speculative Decoding에서 타겟 모델이 초안 토큰을 검증할 때 출력 분포를 보존하기 위해 쓰는 원리는?", "multiple-choice", ["Rejection Sampling으로 분포를 보존하며 병렬 검증", "단순 평균", "랜덤 선택", "토큰 삭제"], "Rejection Sampling으로 분포를 보존하며 병렬 검증", "수용/기각 샘플링으로 타겟 모델의 출력 분포를 그대로 유지하면서 속도를 높입니다."],
+                ["Inference & Serving", "중", "동일/유사한 프롬프트 접두부의 KV를 재사용해 중복 연산을 줄이는 기법은?", "short-answer", null, "Prefix Caching", "공통 프롬프트(시스템 프롬프트 등)의 KV를 캐싱해 Prefill 비용을 절감합니다."],
+                ["Inference & Serving", "하", "LLM이 사실과 다른 내용을 그럴듯하게 지어내는 현상을 무엇이라 하는가?", "short-answer", null, "Hallucination (환각)", "환각은 RAG, 근거 인용, 디코딩 제어 등으로 완화합니다."],
+
+                ["Optimization", "중", "모델 가중치를 학습 완료 후에 저비트로 변환하는 양자화 방식을 무엇이라 하는가?", "short-answer", null, "PTQ (Post-Training Quantization)", "PTQ는 추가 학습 없이 양자화하며, QAT(양자화 인지 학습)와 대비됩니다."],
+                ["Optimization", "상", "4-bit로 양자화한 모델 위에 LoRA를 얹어 미세조정하는 기법은?", "short-answer", null, "QLoRA", "QLoRA는 4-bit NF4 양자화 + LoRA로 메모리를 크게 줄이면서 미세조정을 가능하게 합니다."],
+                ["Optimization", "중", "중요도가 낮은 가중치나 뉴런을 제거하여 모델을 경량화하는 기법은?", "short-answer", null, "Pruning (가지치기)", "Pruning은 불필요한 연결을 제거해 모델 크기와 연산량을 줄입니다."],
+                ["Optimization", "중", "Knowledge Distillation에서 Teacher의 출력을 부드럽게 만들어 Soft Label을 얻기 위해 Softmax에 적용하는 것은?", "multiple-choice", ["Temperature", "Dropout", "L2 규제", "Gradient Clipping"], "Temperature", "높은 Temperature로 Soft Label을 만들어 클래스 간 상대 정보를 Student에 전달합니다."],
+                ["Optimization", "상", "LoRA가 파라미터 효율적인 이유로 옳은 것은?", "multiple-choice", ["원본 가중치는 동결하고 저랭크 행렬만 학습", "모든 가중치를 새로 학습", "레이어를 제거", "양자화만 수행"], "원본 가중치는 동결하고 저랭크 행렬만 학습", "LoRA는 ΔW를 저랭크 분해(A·B)로 근사해 학습 파라미터를 대폭 줄입니다."],
+                ["Optimization", "중", "FP32 대신 FP16/BF16을 섞어 학습 속도와 메모리를 개선하는 기법은?", "short-answer", null, "Mixed Precision Training (혼합 정밀도 학습)", "Mixed Precision은 연산은 저정밀도로, 핵심 누적은 고정밀도로 수행합니다."],
+                ["Optimization", "상", "Mixed Precision 학습에서 FP16의 작은 기울기가 0으로 사라지는 언더플로를 막기 위해 손실에 큰 값을 곱했다 되돌리는 기법은?", "short-answer", null, "Loss Scaling", "Loss Scaling은 손실을 스케일업해 작은 기울기가 FP16 표현 범위에 들도록 합니다."],
+                ["Optimization", "중", "BF16(bfloat16)이 FP16 대비 갖는 장점으로 옳은 것은?", "multiple-choice", ["지수부가 넓어 동적 범위가 커 오버/언더플로에 강함", "항상 더 정밀", "메모리를 더 적게 씀", "정수 연산 전용"], "지수부가 넓어 동적 범위가 커 오버/언더플로에 강함", "BF16은 FP32와 같은 8비트 지수부를 가져 범위가 넓고 학습 안정성이 좋습니다."],
+                ["Optimization", "중", "INT8 양자화가 FP32 대비 갖는 이점으로 옳은 것은?", "multiple-choice", ["메모리 사용량과 대역폭 요구가 약 1/4로 감소", "정확도가 항상 향상", "파라미터 수 증가", "학습이 빨라짐만 한다"], "메모리 사용량과 대역폭 요구가 약 1/4로 감소", "8비트는 32비트 대비 1/4 크기로 추론 메모리·속도에 유리합니다."],
+
+                ["Foundations", "하", "연속형 목표값을 예측하는 문제를 무엇이라 하는가?", "short-answer", null, "Regression (회귀)", "회귀는 수치를 예측하고, 분류(Classification)는 범주를 예측합니다."],
+                ["Foundations", "중", "F1 Score는 무엇의 조화평균인가?", "multiple-choice", ["Precision과 Recall", "Accuracy와 Loss", "TPR과 FPR", "Bias와 Variance"], "Precision과 Recall", "F1 = 2·(P·R)/(P+R)로 정밀도와 재현율의 균형을 봅니다."],
+                ["Foundations", "중", "ROC 곡선의 x축과 y축은 각각 무엇인가?", "multiple-choice", ["x: FPR, y: TPR", "x: Precision, y: Recall", "x: Recall, y: Precision", "x: Accuracy, y: Loss"], "x: FPR, y: TPR", "ROC는 거짓양성률(FPR) 대 참양성률(TPR)을 그리며, 아래 면적이 AUC입니다."],
+                ["Foundations", "하", "과적합을 줄이기 위해 가중치의 크기에 페널티를 부과하는 기법을 통칭하여 무엇이라 하는가?", "short-answer", null, "Regularization (정규화/규제)", "L1, L2, Dropout 등이 대표적인 규제 기법입니다."],
+                ["Foundations", "중", "베이즈 정리에서 사후확률(Posterior)에 비례하는 것은?", "multiple-choice", ["우도(Likelihood) × 사전확률(Prior)", "우도 ÷ 사전확률", "사전확률만", "증거(Evidence)만"], "우도(Likelihood) × 사전확률(Prior)", "P(H|D) ∝ P(D|H)·P(H) 입니다."],
+                ["Foundations", "상", "편향(Bias)이 높은 모델의 전형적 증상은?", "multiple-choice", ["과소적합(Underfitting)", "과적합(Overfitting)", "기울기 폭발", "데이터 누수"], "과소적합(Underfitting)", "높은 편향은 모델이 너무 단순해 패턴을 못 잡는 과소적합으로 이어집니다."],
+                ["Foundations", "중", "Softmax 함수의 출력 특성으로 옳은 것은?", "multiple-choice", ["각 값이 0~1이며 합이 1인 확률분포", "합이 0", "음수 출력", "항상 정수"], "각 값이 0~1이며 합이 1인 확률분포", "Softmax는 로짓을 정규화해 다중 클래스 확률분포로 만듭니다."],
+                ["Foundations", "하", "Sigmoid 함수의 출력 범위는?", "multiple-choice", ["0과 1 사이", "-1과 1 사이", "0과 무한대", "-무한대와 무한대"], "0과 1 사이", "Sigmoid는 임의 실수를 (0,1)로 압축해 이진 분류 확률로 해석됩니다."],
+                ["Foundations", "중", "Entropy(엔트로피)가 높은 분포의 특징은?", "multiple-choice", ["불확실성이 크고 값들이 고르게 퍼져 있음", "한 값에 확률이 집중", "항상 0", "음수"], "불확실성이 크고 값들이 고르게 퍼져 있음", "엔트로피는 불확실성의 척도로, 균등분포에서 최대입니다."],
+                ["Foundations", "상", "KL Divergence의 특성으로 옳은 것은?", "multiple-choice", ["비대칭이며 항상 0 이상", "대칭이다", "음수가 될 수 있다", "거리의 공리를 만족한다"], "비대칭이며 항상 0 이상", "KL(P||Q) ≠ KL(Q||P)이며 두 분포가 같을 때만 0입니다."],
+
+                ["Modeling", "중", "Residual Connection(잔차 연결)이 깊은 네트워크 학습에 도움이 되는 이유는?", "multiple-choice", ["기울기가 직접 흐르는 경로를 만들어 기울기 소실을 완화", "파라미터를 제거", "학습률을 자동 조정", "데이터를 증강"], "기울기가 직접 흐르는 경로를 만들어 기울기 소실을 완화", "Skip connection은 항등 경로를 제공해 매우 깊은 망의 학습을 가능하게 합니다."],
+                ["Modeling", "중", "Layer Normalization이 Transformer에서 Batch Norm 대신 주로 쓰이는 이유는?", "multiple-choice", ["배치 크기/시퀀스 길이에 무관하게 각 샘플 내에서 정규화", "연산이 더 빠름", "파라미터가 없음", "과적합 방지 전용"], "배치 크기/시퀀스 길이에 무관하게 각 샘플 내에서 정규화", "Layer Norm은 특징 차원에 대해 정규화해 가변 길이 시퀀스/작은 배치에 적합합니다."],
+                ["Modeling", "상", "Multi-Head Attention을 사용하는 주된 이유는?", "multiple-choice", ["서로 다른 표현 부분공간에서 다양한 관계를 병렬로 학습", "파라미터를 줄이기 위해", "속도만 높이기 위해", "위치 정보를 제거하기 위해"], "서로 다른 표현 부분공간에서 다양한 관계를 병렬로 학습", "여러 헤드가 각기 다른 패턴(문법, 의미 등)을 포착해 표현력을 높입니다."],
+                ["Modeling", "중", "CNN에서 풀링(Pooling) 레이어의 주된 역할은?", "multiple-choice", ["공간 해상도를 줄여 연산량 감소와 위치 불변성 확보", "파라미터 추가", "활성함수 역할", "정규화"], "공간 해상도를 줄여 연산량 감소와 위치 불변성 확보", "Max/Average Pooling은 특징맵을 다운샘플링합니다."],
+                ["Modeling", "하", "활성함수가 비선형이어야 하는 이유는?", "multiple-choice", ["선형 함수만 쌓으면 결국 하나의 선형 변환과 같아지기 때문", "속도 때문", "메모리 때문", "과적합 때문"], "선형 함수만 쌓으면 결국 하나의 선형 변환과 같아지기 때문", "비선형성이 있어야 신경망이 복잡한 함수를 근사할 수 있습니다."],
+                ["Modeling", "중", "Encoder-Decoder 구조에서 디코더가 인코더의 출력을 참조하는 어텐션을 무엇이라 하는가?", "short-answer", null, "Cross-Attention (크로스 어텐션)", "Cross-Attention은 디코더의 Query가 인코더의 Key/Value를 참조합니다."],
+                ["Modeling", "상", "Mixture of Experts(MoE)에서 입력마다 일부 전문가만 활성화하는 라우팅의 이점은?", "multiple-choice", ["전체 파라미터는 크지만 토큰당 연산량은 일정하게 유지", "모든 전문가를 항상 사용", "파라미터를 줄임", "학습이 불필요"], "전체 파라미터는 크지만 토큰당 연산량은 일정하게 유지", "Sparse MoE는 일부 전문가만 켜 연산 효율을 유지하며 모델 용량을 키웁니다."],
+                ["Modeling", "중", "Dropout을 추론(inference) 시에는 어떻게 처리하는가?", "multiple-choice", ["비활성화하고 전체 뉴런 사용", "그대로 적용", "비율을 2배로", "무작위 제거 유지"], "비활성화하고 전체 뉴런 사용", "추론 시에는 Dropout을 끄고 학습 시 스케일을 보정해 기댓값을 맞춥니다."],
+
+                ["Engineering", "하", "여러 GPU에 모델을 복제하고 각자 다른 미니배치를 처리한 뒤 기울기를 평균내는 PyTorch의 대표 분산 학습 모듈은?", "short-answer", null, "DDP (DistributedDataParallel)", "DDP는 각 프로세스가 기울기를 All-Reduce로 동기화하는 데이터 병렬 방식입니다."],
+                ["Engineering", "중", "제한된 GPU 메모리에서 큰 배치 효과를 내기 위해 여러 스텝의 기울기를 누적 후 한 번에 갱신하는 기법은?", "short-answer", null, "Gradient Accumulation (기울기 누적)", "작은 미니배치의 기울기를 여러 번 누적해 큰 배치처럼 업데이트합니다."],
+                ["Engineering", "상", "순전파 시 중간 활성값을 저장하지 않고 역전파 때 재계산하여 메모리를 절약하는 기법은?", "short-answer", null, "Gradient Checkpointing", "활성값을 일부만 저장하고 필요 시 재계산해 메모리-연산을 트레이드오프합니다."],
+                ["Engineering", "중", "머신러닝 실험의 코드/데이터/하이퍼파라미터/결과를 추적해 재현성을 확보하는 활동을 통칭하여 무엇이라 하는가?", "short-answer", null, "Experiment Tracking (실험 추적)", "MLflow, Weights & Biases 등이 대표적인 실험 추적 도구입니다."],
+                ["Engineering", "하", "컨테이너 기술로 환경을 패키징해 어디서나 동일하게 실행되도록 하는 대표 도구는?", "short-answer", null, "Docker", "Docker 컨테이너는 의존성을 포함해 환경 일관성과 배포 용이성을 제공합니다."],
+                ["Engineering", "중", "RAG(Retrieval-Augmented Generation)의 핵심 아이디어는?", "multiple-choice", ["외부 지식베이스에서 관련 문서를 검색해 생성에 활용", "모델을 재학습", "파라미터를 양자화", "토큰을 캐싱"], "외부 지식베이스에서 관련 문서를 검색해 생성에 활용", "RAG는 검색된 근거를 컨텍스트로 넣어 환각을 줄이고 최신성을 높입니다."],
+                ["Engineering", "중", "벡터 검색에서 정확도 대신 속도를 위해 근사적으로 최근접 이웃을 찾는 방식을 무엇이라 하는가?", "short-answer", null, "ANN (Approximate Nearest Neighbor)", "HNSW, IVF 등 ANN 인덱스로 대규모 벡터 검색을 빠르게 수행합니다."],
+                ["Engineering", "상", "Tensor Parallelism과 Pipeline Parallelism의 차이로 옳은 것은?", "multiple-choice", ["Tensor는 한 레이어 내부 연산을 분할, Pipeline은 레이어 묶음을 단계로 분할", "둘 다 데이터 분할", "Tensor는 레이어 분할, Pipeline은 텐서 분할", "차이 없음"], "Tensor는 한 레이어 내부 연산을 분할, Pipeline은 레이어 묶음을 단계로 분할", "Tensor 병렬은 행렬 연산을 쪼개고, Pipeline 병렬은 모델을 스테이지로 나눠 처리합니다."],
+                ["Engineering", "중", "CI/CD에서 모델을 자동으로 학습·검증·배포하고 모니터링하는 ML 특화 운영 문화를 무엇이라 하는가?", "short-answer", null, "MLOps", "MLOps는 데이터/모델/배포의 자동화·모니터링·재현성을 다룹니다."],
+                ["Engineering", "상", "All-Reduce 연산이 분산 학습에서 하는 역할은?", "multiple-choice", ["모든 워커의 기울기를 합산/평균해 동일하게 공유", "데이터를 분할", "모델을 분할", "파라미터를 양자화"], "모든 워커의 기울기를 합산/평균해 동일하게 공유", "All-Reduce는 각 GPU의 기울기를 집계해 모든 GPU에 동일한 결과를 배포합니다."]
+            ];
+
+            moreConcepts.forEach(c => addQ(...c));
         })();
 
         // --- State ---
