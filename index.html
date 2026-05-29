@@ -1314,7 +1314,27 @@
         function lockAnswer(qId) {
             state.lockedAnswers[qId] = true;
             state.lastLockAt = Date.now();
+            persistAnswer(qId);
             renderQuestion();
+        }
+
+        // Persist each answered question immediately so progress survives a
+        // page refresh mid-quiz (not only when the quiz is submitted).
+        function persistAnswer(qId) {
+            const q = state.questions.find(x => x.id === qId);
+            if (!q) return;
+            const correct = isAnswerCorrect(q, state.userAnswers[qId]);
+            let correctList = getCorrectAnswers();
+            let wrongList = getWrongAnswers();
+            if (correct) {
+                if (!correctList.includes(qId)) correctList.push(qId);
+                wrongList = wrongList.filter(id => id !== qId);
+            } else {
+                if (!wrongList.includes(qId)) wrongList.push(qId);
+                correctList = correctList.filter(id => id !== qId);
+            }
+            saveCorrectAnswers(correctList);
+            saveWrongAnswers(wrongList);
         }
 
         function selectOption(qId, optionVal) {
