@@ -1088,44 +1088,8 @@
                 qOptionsContainer.appendChild(inputContainer);
 
                 if (isLocked) {
-                    let userAnsRaw = (state.userAnswers[q.id] || "").toString().toLowerCase();
-                    let correctAnsRaw = q.answer.toString().toLowerCase();
-                    
-                    let userAnsClean = userAnsRaw.replace(/\s+/g, '');
-                    let correctAnsClean = correctAnsRaw.replace(/\s+/g, '');
-                    
-                    let isCorrect = userAnsClean === correctAnsClean || userAnsRaw === correctAnsRaw;
-                    
-                    // Handle "English (Korean)" format
-                    if (!isCorrect) {
-                        const match = correctAnsRaw.match(/^([^(]+)\s*\(([^)]+)\)$/);
-                        if (match) {
-                            const ans1 = match[1].replace(/\s+/g, '');
-                            const ans2 = match[2].replace(/\s+/g, '');
-                            if (userAnsClean === ans1 || userAnsClean === ans2) isCorrect = true;
-                        }
-                    }
+                    const isCorrect = isAnswerCorrect(q, state.userAnswers[q.id]);
 
-                    // Synonym dictionary for English-Korean mixed terms
-                    if (!isCorrect) {
-                        const synonyms = {
-                            "knowledgedistillation": ["지식증류", "knowledgedistillation"],
-                            "labelsmoothing": ["라벨스무딩", "레이블스무딩", "labelsmoothing"],
-                            "lossscaling": ["로스스케일링", "lossscaling"],
-                            "kvcache": ["kv캐시", "kvcache"],
-                            "flashattention": ["플래시어텐션", "flashattention"],
-                            "speculativedecoding": ["추측디코딩", "speculativedecoding"],
-                            "continuousbatching": ["연속배칭", "continuousbatching"],
-                            "positioninterpolation": ["위치보간", "positioninterpolation"],
-                            "greedysearch": ["그리디서치", "탐욕탐색", "greedysearch"],
-                            "temperature": ["온도", "템퍼러처", "temperature"],
-                        };
-                        
-                        if (synonyms[correctAnsClean] && synonyms[correctAnsClean].includes(userAnsClean)) {
-                            isCorrect = true;
-                        }
-                    }
-                    
                     const explanationDiv = document.createElement('div');
                     explanationDiv.className = 'explanation-box';
                     explanationDiv.style.animation = 'fadeIn 0.3s ease-out';
@@ -1172,6 +1136,50 @@
             }
         }
 
+        // Unified answer grading used by both the per-question view and the results screen.
+        function isAnswerCorrect(q, userAnswerRaw) {
+            const userAns = (userAnswerRaw || '').toString().toLowerCase();
+
+            // Multiple-choice answers match an option exactly.
+            if (q.type === 'multiple-choice') {
+                return userAns === q.answer.toString().toLowerCase();
+            }
+
+            const correctAns = q.answer.toString().toLowerCase();
+
+            const userAnsClean = userAns.replace(/\s+/g, '');
+            const correctAnsClean = correctAns.replace(/\s+/g, '');
+
+            if (userAns === correctAns || userAnsClean === correctAnsClean) return true;
+
+            // Handle "English (Korean)" format — accept either part.
+            const match = correctAns.match(/^([^(]+)\s*\(([^)]+)\)$/);
+            if (match) {
+                const ans1 = match[1].replace(/\s+/g, '');
+                const ans2 = match[2].replace(/\s+/g, '');
+                if (userAnsClean === ans1 || userAnsClean === ans2) return true;
+            }
+
+            // Synonym dictionary for English-Korean mixed terms.
+            const synonyms = {
+                "knowledgedistillation": ["지식증류", "knowledgedistillation"],
+                "labelsmoothing": ["라벨스무딩", "레이블스무딩", "labelsmoothing"],
+                "lossscaling": ["로스스케일링", "lossscaling"],
+                "kvcache": ["kv캐시", "kvcache"],
+                "flashattention": ["플래시어텐션", "flashattention"],
+                "speculativedecoding": ["추측디코딩", "speculativedecoding"],
+                "continuousbatching": ["연속배칭", "continuousbatching"],
+                "positioninterpolation": ["위치보간", "positioninterpolation"],
+                "greedysearch": ["그리디서치", "탐욕탐색", "greedysearch"],
+                "temperature": ["온도", "템퍼러처", "temperature"],
+            };
+            if (synonyms[correctAnsClean] && synonyms[correctAnsClean].includes(userAnsClean)) {
+                return true;
+            }
+
+            return false;
+        }
+
         function finishQuiz() {
             let correctCount = 0;
             const wrongIds = [];
@@ -1180,7 +1188,7 @@
 
             state.questions.forEach((q, index) => {
                 const userAns = state.userAnswers[q.id] || '';
-                const isCorrect = userAns.toString().toLowerCase() === q.answer.toString().toLowerCase();
+                const isCorrect = isAnswerCorrect(q, userAns);
                 
                 if (isCorrect) correctCount++;
                 else wrongIds.push(q.id);
