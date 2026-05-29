@@ -1146,19 +1146,35 @@
             }
 
             const correctAns = q.answer.toString().toLowerCase();
-
             const userAnsClean = userAns.replace(/\s+/g, '');
             const correctAnsClean = correctAns.replace(/\s+/g, '');
 
-            if (userAns === correctAns || userAnsClean === correctAnsClean) return true;
+            // Build every acceptable variant of the stored answer and compare
+            // against the (whitespace-insensitive) user input.
+            // Handles:
+            //   "Overfitting (과적합)"        → "overfitting" / "과적합"
+            //   "eval() (또는 model.eval())"  → "eval()" / "model.eval()"
+            //   "Greedy Search (또는 탐욕 탐색)" → both, plus listed alternatives
+            const variants = new Set();
+            const addVariant = (s) => {
+                const v = (s || '').trim().replace(/\s+/g, '');
+                if (v) variants.add(v);
+            };
 
-            // Handle "English (Korean)" format — accept either part.
-            const match = correctAns.match(/^([^(]+)\s*\(([^)]+)\)$/);
-            if (match) {
-                const ans1 = match[1].replace(/\s+/g, '');
-                const ans2 = match[2].replace(/\s+/g, '');
-                if (userAnsClean === ans1 || userAnsClean === ans2) return true;
+            addVariant(correctAns);
+
+            // A parenthetical set off by whitespace ("main (extra)") carries either
+            // a translation or alternative answers. Code-style parens like "eval()"
+            // have no leading space, so they stay part of the main answer.
+            const paren = correctAns.match(/^(.+?)\s+\((.*)\)\s*$/);
+            if (paren) {
+                addVariant(paren[1]);
+                // Drop a leading "또는"/"or" keyword, then split any listed alternatives.
+                const extra = paren[2].replace(/^\s*(?:또는|or)\s+/, '');
+                extra.split(/\s*(?:또는|or|,|\/)\s*/).forEach(addVariant);
             }
+
+            if (variants.has(userAnsClean)) return true;
 
             // Synonym dictionary for English-Korean mixed terms.
             const synonyms = {
