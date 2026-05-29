@@ -260,6 +260,37 @@
             background-color: var(--surface-hover);
         }
 
+        .opt-num {
+            flex: 0 0 auto;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 26px;
+            height: 26px;
+            margin-right: 14px;
+            border-radius: 7px;
+            background: var(--surface-hover);
+            border: 1px solid var(--border-color);
+            color: var(--text-muted, #94a3b8);
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .kbd-hint {
+            margin-top: 16px;
+            text-align: center;
+            font-size: 0.8rem;
+            color: var(--text-muted, #94a3b8);
+        }
+        .kbd-hint kbd {
+            background: var(--surface-hover);
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            padding: 1px 7px;
+            font-family: inherit;
+            font-size: 0.78rem;
+        }
+
         .option-item.selected {
             background-color: rgba(99, 102, 241, 0.15);
             border-color: var(--primary-color);
@@ -481,6 +512,9 @@
                 <button class="btn btn-outline" id="prev-btn">이전</button>
                 <button class="btn btn-secondary" id="next-btn">다음</button>
                 <button class="btn" id="submit-btn" style="display: none;">제출 및 채점</button>
+            </div>
+            <div class="kbd-hint">
+                키보드: <kbd>1</kbd>~<kbd>4</kbd> 보기 선택 · <kbd>Enter</kbd> 정답 확인/다음 · <kbd>←</kbd> 이전 · <kbd>→</kbd> 다음
             </div>
         </div>
 
@@ -998,6 +1032,8 @@
             goHomeBtn.addEventListener('click', showDashboard);
             reviewWrongBtn.addEventListener('click', () => startQuiz(true));
 
+            document.addEventListener('keydown', handleQuizKeydown);
+
             // Force MathJax to render if present in initial state (not needed usually)
         }
 
@@ -1155,7 +1191,11 @@
                     }
 
                     div.className = classes;
-                    div.textContent = opt;
+                    const numSpan = document.createElement('span');
+                    numSpan.className = 'opt-num';
+                    numSpan.textContent = idx + 1;
+                    div.appendChild(numSpan);
+                    div.appendChild(document.createTextNode(opt));
                     div.onclick = () => {
                         if (!isLocked) selectOption(q.id, opt);
                     };
@@ -1197,6 +1237,9 @@
                     input.onkeydown = (e) => {
                         if (e.key === 'Enter') {
                             e.preventDefault();
+                            // Keep this from reaching the global handler, otherwise the
+                            // same Enter would also advance to the next question.
+                            e.stopPropagation();
                             if (!state.userAnswers[q.id] || state.userAnswers[q.id].trim() === '') {
                                 alert("정답을 입력해주세요.");
                                 return;
@@ -1225,6 +1268,9 @@
                 }
 
                 qOptionsContainer.appendChild(inputContainer);
+
+                // Focus the input so the user can type right away without the mouse.
+                if (!isLocked) setTimeout(() => input.focus(), 0);
 
                 if (isLocked) {
                     const isCorrect = isAnswerCorrect(q, state.userAnswers[q.id]);
@@ -1272,6 +1318,62 @@
             if (newIndex >= 0 && newIndex < state.questions.length) {
                 state.currentIndex = newIndex;
                 renderQuestion();
+            }
+        }
+
+        // Advance to the next question, or submit the quiz on the last one.
+        function goNextOrSubmit() {
+            if (state.currentIndex === state.questions.length - 1) {
+                finishQuiz();
+            } else {
+                navigate(1);
+            }
+        }
+
+        // Keyboard navigation for the quiz screen (mouse-free operation).
+        function handleQuizKeydown(e) {
+            if (!screens.quiz.classList.contains('active')) return;
+            if (e.altKey || e.ctrlKey || e.metaKey) return;
+
+            const q = state.questions[state.currentIndex];
+            if (!q) return;
+            const isLocked = state.lockedAnswers[q.id] === true;
+            const inputEl = qOptionsContainer.querySelector('input');
+            const typingInInput = inputEl && document.activeElement === inputEl;
+
+            // While editing the short-answer field, let the input own every key
+            // (digits, arrows for cursor movement, Enter to confirm).
+            if (typingInInput && !isLocked) return;
+
+            // Number keys select a multiple-choice option.
+            if (q.type === 'multiple-choice' && !isLocked && /^[1-9]$/.test(e.key)) {
+                const n = parseInt(e.key, 10);
+                if (n <= q.options.length) {
+                    e.preventDefault();
+                    selectOption(q.id, q.options[n - 1]);
+                }
+                return;
+            }
+
+            if (e.key === 'ArrowLeft') {
+                if (state.currentIndex > 0) { e.preventDefault(); navigate(-1); }
+                return;
+            }
+
+            if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                goNextOrSubmit();
+                return;
+            }
+
+            if (e.key === 'Enter') {
+                // While typing an unlocked short answer, the input's own handler
+                // takes care of locking — don't also advance.
+                if (typingInInput && !isLocked) return;
+                // Don't skip an unanswered multiple-choice question.
+                if (!isLocked && q.type === 'multiple-choice') return;
+                e.preventDefault();
+                goNextOrSubmit();
             }
         }
 
